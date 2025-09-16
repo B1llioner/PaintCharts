@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Инструмент для рисования зон торговли</title>
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: #1a1a1a;
+            border-right: 1px solid #333;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toolbar {
+            background: #2a2a2a;
+            padding: 15px 20px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .charts-container {
+            flex: 1;
+            display: grid;
+            gap: 10px;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        .chart-wrapper {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-header {
+            background: #2a2a2a;
+            padding: 10px 15px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chart-info {
+            font-size: 14px;
+            color: #888;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chart-content {
+            height: calc(100% - 50px);
+            position: relative;
+        }
+
+        .chart {
+            width: 100%;
+            height: 100%;
+        }
+
+        .btn {
+            background: #3a3a3a;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #4a4a4a;
+            border-color: #666;
+        }
+
+        .btn-primary {
+            background: #0066cc;
+            border-color: #0088ff;
+        }
+
+        .btn-primary:hover {
+            background: #0088ff;
+        }
+
+        .btn-danger {
+            background: #cc3300;
+            border-color: #ff4400;
+        }
+
+        .btn-danger:hover {
+            background: #ff4400;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .input-group label {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .input-group input,
+        .input-group select {
+            background: #2a2a2a;
+            border: 1px solid #555;
+            color: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: #0088ff;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: #2a2a2a;
+            border: 1px solid #555;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #555;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-row .input-group {
+            flex: 1;
+        }
+
+        .hotkey-settings {
+            margin-top: 20px;
+        }
+
+        .hotkey-item {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #333;
+            border-radius: 6px;
+        }
+
+        .hotkey-item input[type="text"] {
+            flex: 1;
+        }
+
+        .hotkey-item input[type="color"] {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .hotkey-item select {
+            flex: 1;
+        }
+
+        .hotkey-item .btn {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .zones-panel {
+            margin-top: 20px;
+        }
+
+        .zone-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            background: #333;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .zone-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+        }
+
+        .zone-name {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .zone-group {
+            font-size: 12px;
+            color: #888;
+            background: #444;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+
+        .status-bar {
+            background: #1a1a1a;
+            padding: 10px 20px;
+            border-top: 1px solid #333;
+            font-size: 12px;
+            color: #888;
+        }
+
+        /* Адаптивная верстка */
+        @media (max-width: 1200px) {
+            .sidebar {
+                width: 250px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 40vh;
+            }
+            
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Сетка для графиков */
+        .charts-container.grid-1 {
+            grid-template-columns: 1fr;
+        }
+
+        .charts-container.grid-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .charts-container.grid-3 {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        .charts-container.grid-4 {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        .charts-container.grid-5 {
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        .charts-container.grid-6 {
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            font-size: 16px;
+            color: #888;
+        }
+
+        .error {
+            color: #ff6b6b;
+            background: #2d1b1b;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .success {
+            color: #51cf66;
+            background: #1b2d1b;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Боковая панель -->
+        <div class="sidebar">
+            <h3>Настройки</h3>
+            
+            <div class="form-group">
+                <button class="btn btn-primary" onclick="openSettingsModal()">Настройки хоткеев</button>
+            </div>
+
+            <div class="form-group">
+                <button class="btn btn-primary" onclick="addChart()">Добавить график</button>
+            </div>
+
+            <div class="form-group">
+                <button class="btn btn-primary" onclick="exportToCSV()">Экспорт в CSV</button>
+            </div>
+
+            <div class="zones-panel">
+                <h4>Зоны торговли</h4>
+                <div id="zonesList"></div>
+            </div>
+        </div>
+
+        <!-- Основной контент -->
+        <div class="main-content">
+            <!-- Панель инструментов -->
+            <div class="toolbar">
+                <div class="input-group">
+                    <label>API Key</label>
+                    <input type="text" id="apiKey" value="57e6078b48cf4f2bb9a308fabde7a594" placeholder="Введите API ключ">
+                </div>
+                <button class="btn" onclick="loadAllCharts()">Загрузить все графики</button>
+            </div>
+
+            <!-- Контейнер графиков -->
+            <div class="charts-container grid-1" id="chartsContainer">
+                <div class="loading">Добавьте график для начала работы</div>
+            </div>
+
+            <!-- Статус бар -->
+            <div class="status-bar" id="statusBar">
+                Готов к работе
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно настроек -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Настройки хоткеев и характеристик</h3>
+            </div>
+            
+            <div class="hotkey-settings">
+                <h4>Характеристики для разметки</h4>
+                <div id="hotkeyList">
+                    <!-- Хоткеи будут добавлены динамически -->
+                </div>
+                <button class="btn" onclick="addHotkey()">Добавить характеристику</button>
+            </div>
+
+            <div style="margin-top: 30px; display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="saveSettings()">Сохранить</button>
+                <button class="btn" onclick="closeSettingsModal()">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно добавления графика -->
+    <div class="modal" id="addChartModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Добавить график</h3>
+            </div>
+            
+            <div class="form-row">
+                <div class="input-group">
+                    <label>Пара</label>
+                    <input type="text" id="chartSymbol" value="BTCUSDT" placeholder="BTCUSDT">
+                </div>
+                <div class="input-group">
+                    <label>Биржа</label>
+                    <select id="chartExchange">
+                        <option value="Binance">Binance</option>
+                        <option value="OKX">OKX</option>
+                        <option value="Bybit">Bybit</option>
+                        <option value="Coinbase">Coinbase</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="input-group">
+                    <label>Тип</label>
+                    <select id="chartType">
+                        <option value="spot">Спотовая пара</option>
+                        <option value="futures">Фьючерсная пара</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Интервал</label>
+                    <select id="chartInterval">
+                        <option value="1m">1 минута</option>
+                        <option value="3m">3 минуты</option>
+                        <option value="5m">5 минут</option>
+                        <option value="15m">15 минут</option>
+                        <option value="30m">30 минут</option>
+                        <option value="1h">1 час</option>
+                        <option value="4h">4 часа</option>
+                        <option value="6h">6 часов</option>
+                        <option value="8h">8 часов</option>
+                        <option value="12h">12 часов</option>
+                        <option value="1d">1 день</option>
+                        <option value="1w">1 неделя</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="input-group">
+                    <label>Начальная дата</label>
+                    <input type="datetime-local" id="chartStartDate">
+                </div>
+                <div class="input-group">
+                    <label>Конечная дата</label>
+                    <input type="datetime-local" id="chartEndDate">
+                </div>
+            </div>
+
+            <div style="margin-top: 30px; display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="createChart()">Создать график</button>
+                <button class="btn" onclick="closeAddChartModal()">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

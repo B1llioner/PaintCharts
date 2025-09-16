@@ -1,0 +1,9 @@
+app.zip
+tradingview_spread_v2_fixed.html
+*.md
+.env.local
+.next
+examples/
+package-lock.json
+demo.html
+node_modules/
