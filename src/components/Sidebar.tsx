@@ -10,7 +10,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onOpenSettings, onAddChart }: SidebarProps) {
-  const { charts, tradingZones, exportToCSV } = useAppStore();
+  const { charts, tradingZones } = useAppStore();
 
   const handleExport = async () => {
     try {
@@ -54,7 +54,7 @@ export function Sidebar({ onOpenSettings, onAddChart }: SidebarProps) {
       const chartData = chart.series.data();
       const chartZones = chart.zones || [];
       
-      chartData.forEach(candle => {
+      chartData.forEach((candle: { time: number; open: any; high: any; low: any; close: any; volume: any; }) => {
         const zonesForTime = chartZones.filter(zone => 
           candle.time >= zone.startTime && candle.time <= zone.endTime
         );

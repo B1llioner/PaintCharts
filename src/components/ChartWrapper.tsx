@@ -3,7 +3,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChartConfig } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
-import { InteractiveZones } from './InteractiveZones';
 
 interface ChartWrapperProps {
   chart: ChartConfig;
@@ -23,7 +22,7 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
     const initChart = async () => {
       try {
         // Dynamic import for LightweightCharts
-        const { createChart } = await import('lightweight-charts');
+        const { createChart, CandlestickSeries } = await import('lightweight-charts');
         
         const chartInstance = createChart(chartRef.current!, {
           layout: {
@@ -45,7 +44,7 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
           height: chartRef.current!.clientHeight,
         });
 
-        const candlestickSeries = chartInstance.addCandlestickSeries({
+        const candlestickSeries = chartInstance.addSeries(CandlestickSeries, {
           upColor: '#26a69a',
           downColor: '#ef5350',
           borderVisible: false,
@@ -81,7 +80,13 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
         };
       } catch (error) {
         console.error('Chart initialization error:', error);
-        setError('Ошибка инициализации графика');
+        console.error('Error details:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined,
+          chartElement: chartRef.current,
+          chartConfig: chart
+        });
+        setError(`Ошибка инициализации графика: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
       }
     };
 
@@ -169,14 +174,6 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
       <div className="relative" style={{ height: '400px' }}>
         <div ref={chartRef} className="w-full h-full" />
         
-        {/* Interactive Zones Component */}
-        {chartInstanceRef.current && seriesRef.current && (
-          <InteractiveZones 
-            chartId={chart.id}
-            chart={chartInstanceRef.current}
-            series={seriesRef.current}
-          />
-        )}
         
         {isLoading && (
           <div className="absolute inset-0 bg-dark-800 bg-opacity-75 flex items-center justify-center">

@@ -177,6 +177,7 @@ export const useAppStore = create<AppStore>()(
       name: 'trading-tool-storage',
       partialize: (state) => ({
         hotkeys: state.hotkeys,
+        tradingZones: state.tradingZones,
         charts: state.charts.map(chart => ({
           ...chart,
           chart: undefined,

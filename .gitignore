@@ -7,3 +7,4 @@ examples/
 package-lock.json
 demo.html
 node_modules/
+src/components/trash/
