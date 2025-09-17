@@ -226,7 +226,7 @@ function initializeChart(config) {
             background: { type: 'solid', color: '#1a1a1a' }, 
             textColor: '#e0e0e0' 
         },
-        rightPriceScale: { visible: true, borderVisible: false },
+        rightPriceScale: { visible: true, borderVisible: false, scaleMargins: { top: 0.1, bottom: 0.1 } },
         grid: { 
             vertLines: { color: 'rgba(197,203,206,0.1)' }, 
             horzLines: { color: 'rgba(197,203,206,0.1)' } 
