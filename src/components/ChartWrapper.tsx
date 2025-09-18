@@ -11,31 +11,30 @@ interface ChartWrapperProps {
   chart: ChartConfig;
 }
 
-function hexToRgba(hex: string, alpha = 0.18) {
+/** Прозрачный цвет для зоны */
+function hexToRgba(hex: string, alpha = 0.28) {
   const m = hex.replace('#', '');
   const v = parseInt(m.length === 3 ? m.split('').map(c => c + c).join('') : m, 16);
   const r = (v >> 16) & 255, g = (v >> 8) & 255, b = v & 255;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// нормализуем time из lightweight-charts в unix-sec
+/** Нормализуем время lightweight-charts в unix-sec */
 function toUnix(t: LwTime): UTCTimestamp {
   if (typeof t === 'number') return t;
   const d = Date.UTC(t.year, t.month - 1, t.day, 0, 0, 0);
   return Math.floor(d / 1000);
 }
 
+/** Игнорим хоткеи, когда пользователь печатает или открыт модал */
 function isTypingContext(e: KeyboardEvent): boolean {
   const el = e.target as HTMLElement | null;
   if (!el) return false;
-
-  // 1) любые поля ввода/редакторы
   const tag = el.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-  if ((el as HTMLElement).isContentEditable) return true;
+  if (el.isContentEditable) return true;
 
-  // 2) если открыт любой модал/диалог — игнорим хоткеи
-  // (role="dialog" для headless ui/aria, .modal для кастомных классов)
+  // Примитивная проверка открытого модала
   const openDialog = document.querySelector<HTMLElement>('[role="dialog"], .modal, [data-modal="true"]');
   if (openDialog && openDialog.offsetParent !== null) return true;
 
@@ -50,7 +49,10 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  // активный хоткей (держим и в ref, чтобы onClick всегда видел актуальное значение)
+  // Ховер над областью графика (чтобы не ловить хоткеи везде)
+  const [isHover, setIsHover] = useState(false);
+
+  // Активный хоткей (тип зоны) — и в state, и в ref (чтобы onClick видел актуальное)
   const [_activeHotkeyId, _setActiveHotkeyId] = useState<string | null>(null);
   const activeHotkeyIdRef = useRef<string | null>(null);
   const setActiveHotkeyId = (v: string | null) => {
@@ -58,7 +60,7 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
     _setActiveHotkeyId(v);
   };
 
-  // ожидаем второй клик: старт зоны
+  // Ожидание второго клика — старт зоны
   const [_pendingStart, _setPendingStart] = useState<UTCTimestamp | null>(null);
   const pendingStartRef = useRef<UTCTimestamp | null>(null);
   const setPendingStart = (v: UTCTimestamp | null) => {
@@ -66,11 +68,7 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
     _setPendingStart(v);
   };
 
-
-  // Добавим флаг «курсор над графиком»:
-  const [isHover, setIsHover] = useState(false);
-
-
+  // Ссылки на стор
   const {
     removeChart,
     setError,
@@ -80,55 +78,15 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
     hotkeys,
   } = useAppStore();
 
-  // зоны, относящиеся к этому графику (для заголовка и эффекта перерисовки)
+  // Зоны для заголовка/слежения (рендер всё равно берёт из стора напрямую)
   const zonesForChart = useMemo(
     () => tradingZones.filter(z => z.chartId === chart.id),
     [tradingZones, chart.id]
   );
 
-  // хоткеи: U/D/F/B/P/H… — просто выбирают тип зоны, никаких зон не создаётся!
-  useEffect(() => {
-    const onDown = (e: KeyboardEvent) => {
-      // 0) если фокус в формах или открыт модал — не трогаем
-      if (isTypingContext(e)) return;
-  
-      // 1) хоткеи работают либо когда курсор над графиком, либо всегда — выбери режим
-      // Если хочешь только при ховере, оставь условие isHover:
-      if (!isHover) return; // ← убери эту строку, если нужно глобально
-  
-      const key = e.key.toLowerCase();
-  
-      // ESC — выход из режима бинда + сброс незавершенной зоны
-      if (key === 'escape') {
-        setActiveHotkeyId(null);
-        setPendingStart(null);
-        requestAnimationFrame(redrawOverlay);
-        return;
-      }
-  
-      // Ищем хоткей среди настроенных (U/D/F/B/P/H ...)
-      const hk = hotkeys.find(h => h.key?.toLowerCase() === key);
-      if (!hk) return;
-  
-      e.preventDefault(); // не даём модифицировать фокус и т.д.
-      if (activeHotkeyIdRef.current === hk.id) {
-        // повторное нажатие — выключаем режим
-        setActiveHotkeyId(null);
-        setPendingStart(null);
-      } else {
-        // включаем режим для выбранного типа зоны
-        setActiveHotkeyId(hk.id);
-        setPendingStart(null);
-      }
-      requestAnimationFrame(redrawOverlay);
-    };
-  
-    document.addEventListener('keydown', onDown, { capture: true });
-    return () => document.removeEventListener('keydown', onDown, { capture: true } as any);
-  }, [hotkeys, isHover]);
-
-  // отрисовка полупрозрачных зон поверх канваса (html-overlay)
-  const redrawOverlay = () => {
+  // ==== Рисовальщик зон (через ref, чтобы всегда быть актуальным) ====
+  const redrawOverlayRef = useRef<() => void>(() => {});
+  const doRedrawOverlay = () => {
     const inst = chartInstanceRef.current;
     const overlay = overlayRef.current;
     if (!inst || !overlay) return;
@@ -136,6 +94,7 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
     const ts = inst.timeScale();
     overlay.innerHTML = '';
 
+    // Берём именно текущее состояние зон из стора
     const allZones = useAppStore.getState().tradingZones;
     const zonesNow = allZones.filter(z => z.chartId === chart.id);
 
@@ -153,12 +112,15 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
       el.style.bottom = '0';
       el.style.left = `${left}px`;
       el.style.width = `${width}px`;
-      el.style.background = hexToRgba(z.color, 0.18);
+      el.style.background = hexToRgba(z.color, 0.28);
       el.style.pointerEvents = 'none';
+      // Акценты по краям зоны (как референс)
+      el.style.borderLeft = `2px solid ${z.color}`;
+      el.style.borderRight = `2px solid ${z.color}`;
       overlay.appendChild(el);
     });
 
-    // линия-указатель старта, если ждём второй клик
+    // Линия старта, если ждём второй клик
     const pending = pendingStartRef.current;
     if (pending != null) {
       const x = ts.timeToCoordinate(pending);
@@ -175,8 +137,49 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
       }
     }
   };
+  // Обновляем ссылку на актуальный рисовальщик на каждом рендере
+  useEffect(() => {
+    redrawOverlayRef.current = doRedrawOverlay;
+  });
 
-  // инициализация чарта — ТОЛЬКО при монтировании/смене chart.id
+  // ==== Хоткеи: включение/выключение режима бинда + ESC ====
+  useEffect(() => {
+    const onDown = (e: KeyboardEvent) => {
+      if (isTypingContext(e)) return; // игнор при вводе/модале
+      // Если нужно активировать хоткеи только над графиком — оставь проверку isHover
+      if (!isHover) return;
+
+      const key = e.key.toLowerCase();
+
+      // ESC: выход из режима + сброс незавершенной зоны
+      if (key === 'escape') {
+        setActiveHotkeyId(null);
+        setPendingStart(null);
+        requestAnimationFrame(() => redrawOverlayRef.current());
+        return;
+      }
+
+      const hk = hotkeys.find(h => h.key?.toLowerCase() === key);
+      if (!hk) return;
+
+      e.preventDefault();
+      if (activeHotkeyIdRef.current === hk.id) {
+        // повторное нажатие — выключаем биндинг
+        setActiveHotkeyId(null);
+        setPendingStart(null);
+      } else {
+        // включаем новый тип зоны
+        setActiveHotkeyId(hk.id);
+        setPendingStart(null);
+      }
+      requestAnimationFrame(() => redrawOverlayRef.current());
+    };
+
+    document.addEventListener('keydown', onDown, { capture: true });
+    return () => document.removeEventListener('keydown', onDown, { capture: true } as any);
+  }, [hotkeys, isHover]);
+
+  // ==== Инициализация чарта (только на монтаж/смену chart.id) ====
   useEffect(() => {
     if (!chartRef.current) return;
 
@@ -198,7 +201,7 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
             horzLines: { color: 'rgba(197,203,206,0.1)' },
           },
           timeScale: { timeVisible: true, secondsVisible: true, borderVisible: true },
-          crosshair: { mode: 0 },
+          crosshair: { mode: 1 },
           width: chartRef.current.clientWidth,
           height: chartRef.current.clientHeight,
         });
@@ -215,30 +218,29 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
         chartInstanceRef.current = inst;
         seriesRef.current = series;
 
-        // положим ссылки в стор (для экспорта/прочего)
-        updateChart(chart.id, { chart: inst, series });
+        // Сохраняем ссылки для экспорта и внешних действий
+        useAppStore.getState().updateChart(chart.id, { chart: inst, series });
 
-        // === обработчик кликов по графику: первый клик — старт, второй — финиш
+        // Обработчик кликов для биндинга зон
         const onClick = (param: any) => {
           if (!param || param.point?.x == null || param.point?.y == null) return;
           if (!param.time) return; // клик вне области баров
-
           const currentHotkeyId = activeHotkeyIdRef.current;
-          if (!currentHotkeyId) return; // тип зоны не выбран
+          if (!currentHotkeyId) return; // режим не активен
 
           const hk = useAppStore.getState().hotkeys.find(h => h.id === currentHotkeyId);
           if (!hk) return;
 
           const t = toUnix(param.time as LwTime);
 
-          // 1-й клик: фиксируем старт
+          // Первый клик — фиксируем старт
           if (pendingStartRef.current == null) {
             setPendingStart(t);
-            requestAnimationFrame(redrawOverlay);
+            requestAnimationFrame(() => redrawOverlayRef.current());
             return;
           }
 
-          // 2-й клик: создаём зону и сбрасываем ожидание
+          // Второй клик — создаём зону
           const start = Math.min(pendingStartRef.current, t);
           const end = Math.max(pendingStartRef.current, t);
 
@@ -257,33 +259,34 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
             type: chart.type,
           };
 
-          // глобальный список (левая панель)
-          addTradingZone(zone);
+          // Глобальный список (левая панель)
+          useAppStore.getState().addTradingZone(zone);
 
-          // дублируем в chart.zones — экспорт останется рабочим
+          // Дублируем в chart.zones — экспорт остаётся рабочим
           const prevZones = (chart as any).zones || [];
-          updateChart(chart.id, { zones: [...prevZones, zone] });
+          useAppStore.getState().updateChart(chart.id, { zones: [...prevZones, zone] });
 
+          // Остаёмся в активном типе, но сбрасываем ожидание конца
           setPendingStart(null);
-          requestAnimationFrame(redrawOverlay);
+          requestAnimationFrame(() => redrawOverlayRef.current());
         };
 
         inst.subscribeClick(onClick);
         unsubClick = () => inst.unsubscribeClick(onClick);
 
-        // при скролле/зумах — просто перерисовываем overlay
-        const onRange = () => redrawOverlay();
+        // При скролле/зумах — просто перерисовываем актуальным рисовальщиком
+        const onRange = () => requestAnimationFrame(() => redrawOverlayRef.current());
         inst.timeScale().subscribeVisibleTimeRangeChange(onRange);
         unsubRange = () => inst.timeScale().unsubscribeVisibleTimeRangeChange(onRange);
 
-        // ресайз контейнера
+        // Ресайз контейнера
         ro = new ResizeObserver(() => {
           if (!chartRef.current) return;
           inst.applyOptions({
             width: chartRef.current.clientWidth,
             height: chartRef.current.clientHeight,
           });
-          redrawOverlay();
+          requestAnimationFrame(() => redrawOverlayRef.current());
         });
         ro.observe(chartRef.current);
       } catch (e) {
@@ -300,15 +303,15 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
       chartInstanceRef.current?.remove();
       chartInstanceRef.current = null;
     };
-  // ВАЖНО: только chart.id — хоткеи/зоны не должны пересоздавать чарт
-  }, [chart.id, setError, updateChart, addTradingZone]);
-
-  // перерисовать overlay при изменении зон/хоткея/ожидания второго клика
-  useEffect(() => {
-    requestAnimationFrame(redrawOverlay);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zonesForChart, _activeHotkeyId, _pendingStart]);
+  }, [chart.id]);
 
+  // Перерисовать overlay при изменении зон / хоткея / ожидания второго клика
+  useEffect(() => {
+    requestAnimationFrame(() => redrawOverlayRef.current());
+  }, [tradingZones, _activeHotkeyId, _pendingStart, chart.id]);
+
+  // ==== Загрузка данных ====
   const loadChartData = async () => {
     if (!seriesRef.current) return;
 
@@ -335,7 +338,7 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
       if (result.success) {
         seriesRef.current.setData(result.data);
         chartInstanceRef.current?.timeScale().fitContent();
-        requestAnimationFrame(redrawOverlay);
+        requestAnimationFrame(() => redrawOverlayRef.current());
       } else {
         throw new Error(result.error || 'API Error');
       }
@@ -374,6 +377,7 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
               </span>
             )}
           </div>
+
           <div className="flex items-center space-x-2">
             <button
               onClick={loadChartData}
@@ -390,14 +394,19 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
       </div>
 
       {/* Chart area */}
-      <div className="relative" style={{ height: '700px' }} onMouseEnter={() => setIsHover(true)} onMouseLeave={() => setIsHover(false)}>
+      <div
+        className="relative"
+        style={{ height: '750px' }}
+        onMouseEnter={() => setIsHover(true)}
+        onMouseLeave={() => setIsHover(false)}
+      >
         <div ref={chartRef} className="w-full h-full" />
-        {/* полупрозрачные зоны поверх канваса */}
+        {/* Полупрозрачные зоны поверх канваса */}
         <div ref={overlayRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }} />
         {isLoading && (
           <div className="absolute inset-0 bg-dark-800 bg-opacity-75 flex items-center justify-center">
             <div className="flex items-center space-x-2 text-white">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500"></div>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2"></div>
               <span className="text-sm">Загрузка...</span>
             </div>
           </div>

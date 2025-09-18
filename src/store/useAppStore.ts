@@ -118,28 +118,21 @@ export const useAppStore = create<AppStore>()(
           createdAt: new Date().toISOString()
         };
         
-        set((state) => ({
-          tradingZones: [...state.tradingZones, newZone],
-          charts: state.charts.map(chart => 
-            chart.id === zoneData.chartId 
-              ? { ...chart, zones: [...chart.zones ?? [], newZone] }
-              : chart
-          )
-        }));
+        console.log('Добавление зоны в стор:', newZone);
+        
+        set((state) => {
+          const newState = {
+            tradingZones: [...state.tradingZones, newZone]
+          };
+          console.log('Новое состояние стора:', newState);
+          return newState;
+        });
       },
 
       removeTradingZone: (zoneId) => {
-        const zone = get().tradingZones.find(z => z.id === zoneId);
-        if (zone) {
-          set((state) => ({
-            tradingZones: state.tradingZones.filter(z => z.id !== zoneId),
-            charts: state.charts.map(chart => 
-              chart.id === zone.chartId 
-                ? { ...chart, zones: chart.zones.filter(z => z.id !== zoneId) }
-                : chart
-            )
-          }));
-        }
+        set((state) => ({
+          tradingZones: state.tradingZones.filter(z => z.id !== zoneId)
+        }));
       },
 
       updateTradingZone: (zoneId, updates) => {
@@ -189,13 +182,7 @@ export const useAppStore = create<AppStore>()(
           ...chart,
           chart: undefined,
           series: undefined,
-          zones: chart.zones.map(zone => ({
-            ...zone,
-            topLine: undefined,
-            bottomLine: undefined,
-            startLine: undefined,
-            endLine: undefined
-          }))
+          zones: [] // Убираем сохранение zones, так как они хранятся в tradingZones
         }))
       })
     }

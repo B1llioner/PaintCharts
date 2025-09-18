@@ -4,7 +4,11 @@ import React from 'react';
 import { useAppStore } from '@/store/useAppStore';
 
 export function ZonesList() {
-  const { tradingZones, removeTradingZone } = useAppStore();
+  const { tradingZones, removeTradingZone, charts } = useAppStore();
+
+  // Добавим отладочную информацию
+  console.log('ZonesList: все зоны в сторе:', tradingZones);
+  console.log('ZonesList: все графики:', charts);
 
   // Group zones by group
   const groupedZones = tradingZones.reduce((acc, zone) => {
@@ -14,6 +18,13 @@ export function ZonesList() {
     acc[zone.group].push(zone);
     return acc;
   }, {} as Record<string, typeof tradingZones>);
+
+  // Функция для получения информации о графике по chartId
+  const getChartInfo = (chartId: string) => {
+    const chart = charts.find(c => c.id === chartId);
+    if (!chart) return 'Неизвестный график';
+    return `${chart.symbol} (${chart.exchange}, ${chart.type}, ${chart.interval})`;
+  };
 
   if (tradingZones.length === 0) {
     return (
@@ -71,6 +82,10 @@ export function ZonesList() {
                         minute: '2-digit',
                         second: '2-digit'
                       })}
+                    </div>
+                    {/* Добавляем информацию о графике */}
+                    <div className="text-xs text-blue-400 mt-1">
+                      📊 {getChartInfo(zone.chartId)}
                     </div>
                   </div>
                   
