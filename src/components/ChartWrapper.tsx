@@ -25,6 +25,23 @@ function toUnix(t: LwTime): UTCTimestamp {
   return Math.floor(d / 1000);
 }
 
+function isTypingContext(e: KeyboardEvent): boolean {
+  const el = e.target as HTMLElement | null;
+  if (!el) return false;
+
+  // 1) любые поля ввода/редакторы
+  const tag = el.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if ((el as HTMLElement).isContentEditable) return true;
+
+  // 2) если открыт любой модал/диалог — игнорим хоткеи
+  // (role="dialog" для headless ui/aria, .modal для кастомных классов)
+  const openDialog = document.querySelector<HTMLElement>('[role="dialog"], .modal, [data-modal="true"]');
+  if (openDialog && openDialog.offsetParent !== null) return true;
+
+  return false;
+}
+
 export function ChartWrapper({ chart }: ChartWrapperProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -49,6 +66,11 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
     _setPendingStart(v);
   };
 
+
+  // Добавим флаг «курсор над графиком»:
+  const [isHover, setIsHover] = useState(false);
+
+
   const {
     removeChart,
     setError,
@@ -67,15 +89,43 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
   // хоткеи: U/D/F/B/P/H… — просто выбирают тип зоны, никаких зон не создаётся!
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
-      const hk = hotkeys.find(h => h.key?.toLowerCase() === e.key.toLowerCase());
+      // 0) если фокус в формах или открыт модал — не трогаем
+      if (isTypingContext(e)) return;
+  
+      // 1) хоткеи работают либо когда курсор над графиком, либо всегда — выбери режим
+      // Если хочешь только при ховере, оставь условие isHover:
+      if (!isHover) return; // ← убери эту строку, если нужно глобально
+  
+      const key = e.key.toLowerCase();
+  
+      // ESC — выход из режима бинда + сброс незавершенной зоны
+      if (key === 'escape') {
+        setActiveHotkeyId(null);
+        setPendingStart(null);
+        requestAnimationFrame(redrawOverlay);
+        return;
+      }
+  
+      // Ищем хоткей среди настроенных (U/D/F/B/P/H ...)
+      const hk = hotkeys.find(h => h.key?.toLowerCase() === key);
       if (!hk) return;
-      e.preventDefault();
-      setActiveHotkeyId(hk.id);   // выбрали тип
-      setPendingStart(null);      // сброс незавершённой зоны
+  
+      e.preventDefault(); // не даём модифицировать фокус и т.д.
+      if (activeHotkeyIdRef.current === hk.id) {
+        // повторное нажатие — выключаем режим
+        setActiveHotkeyId(null);
+        setPendingStart(null);
+      } else {
+        // включаем режим для выбранного типа зоны
+        setActiveHotkeyId(hk.id);
+        setPendingStart(null);
+      }
+      requestAnimationFrame(redrawOverlay);
     };
-    document.addEventListener('keydown', onDown);
-    return () => document.removeEventListener('keydown', onDown);
-  }, [hotkeys]);
+  
+    document.addEventListener('keydown', onDown, { capture: true });
+    return () => document.removeEventListener('keydown', onDown, { capture: true } as any);
+  }, [hotkeys, isHover]);
 
   // отрисовка полупрозрачных зон поверх канваса (html-overlay)
   const redrawOverlay = () => {
@@ -148,7 +198,7 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
             horzLines: { color: 'rgba(197,203,206,0.1)' },
           },
           timeScale: { timeVisible: true, secondsVisible: true, borderVisible: true },
-          crosshair: { mode: 1 },
+          crosshair: { mode: 0 },
           width: chartRef.current.clientWidth,
           height: chartRef.current.clientHeight,
         });
@@ -172,6 +222,7 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
         const onClick = (param: any) => {
           if (!param || param.point?.x == null || param.point?.y == null) return;
           if (!param.time) return; // клик вне области баров
+
           const currentHotkeyId = activeHotkeyIdRef.current;
           if (!currentHotkeyId) return; // тип зоны не выбран
 
@@ -339,10 +390,10 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
       </div>
 
       {/* Chart area */}
-      <div className="relative" style={{ height: '400px' }}>
+      <div className="relative" style={{ height: '700px' }} onMouseEnter={() => setIsHover(true)} onMouseLeave={() => setIsHover(false)}>
         <div ref={chartRef} className="w-full h-full" />
         {/* полупрозрачные зоны поверх канваса */}
-        <div ref={overlayRef} className="absolute inset-0 pointer-events-none" />
+        <div ref={overlayRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }} />
         {isLoading && (
           <div className="absolute inset-0 bg-dark-800 bg-opacity-75 flex items-center justify-center">
             <div className="flex items-center space-x-2 text-white">

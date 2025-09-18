@@ -5,6 +5,7 @@ import { AppState, ChartConfig, Hotkey, TradingZone } from '@/types';
 interface AppStore extends AppState {
   // Actions
   addChart: (chart: Omit<ChartConfig, 'id' | 'zones'>) => void;
+
   removeChart: (chartId: string) => void;
   updateChart: (chartId: string, updates: Partial<ChartConfig>) => void;
   
@@ -36,31 +37,37 @@ const defaultHotkeys: Omit<Hotkey, 'id'>[] = [
   { name: 'Время брить хомяков', key: 'H', color: '#ffa500', group: 'Vibe' }
 ];
 
+const uuid = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+
 export const useAppStore = create<AppStore>()(
   persist(
     (set, get) => ({
       // Initial state
       charts: [],
-      hotkeys: defaultHotkeys.map((hotkey, index) => ({ ...hotkey, id: `hotkey-${index}` })),
       tradingZones: [],
+      hotkeys: defaultHotkeys.map((hotkey, index) => ({ ...hotkey, id: `hotkey-${index}` })),
       currentChartId: 0,
       selectedRange: null,
       isLoading: false,
       error: null,
 
       // Chart actions
-      addChart: (chartData) => {
-        const newChart: ChartConfig = {
-          ...chartData,
-          id: `chart-${get().currentChartId}`,
-          zones: []
-        };
-        
+      addChart: (data) =>
         set((state) => ({
-          charts: [...state.charts, newChart],
-          currentChartId: state.currentChartId + 1
-        }));
-      },
+          charts: [
+            ...state.charts,
+            {
+              id: uuid(),       // ← уникальный
+              ...data,
+              zones: [],        // ← обязательно пусто
+              chart: undefined,
+              series: undefined,
+            },
+          ],
+        })),
 
       removeChart: (chartId) => {
         set((state) => ({
@@ -69,13 +76,11 @@ export const useAppStore = create<AppStore>()(
         }));
       },
 
-      updateChart: (chartId, updates) => {
-        set((state) => ({
-          charts: state.charts.map(chart => 
-            chart.id === chartId ? { ...chart, ...updates } : chart
-          )
-        }));
-      },
+    // 2) ОБНОВЛЕНИЕ ГРАФИКА — СТРОГО ПО ID
+    updateChart: (id, patch) =>
+      set((state) => ({
+        charts: state.charts.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+      })),
 
       // Hotkey actions
       addHotkey: (hotkeyData) => {
@@ -103,6 +108,8 @@ export const useAppStore = create<AppStore>()(
         }));
       },
 
+
+
       // Trading zone actions
       addTradingZone: (zoneData) => {
         const newZone: TradingZone = {
@@ -115,7 +122,7 @@ export const useAppStore = create<AppStore>()(
           tradingZones: [...state.tradingZones, newZone],
           charts: state.charts.map(chart => 
             chart.id === zoneData.chartId 
-              ? { ...chart, zones: [...chart.zones, newZone] }
+              ? { ...chart, zones: [...chart.zones ?? [], newZone] }
               : chart
           )
         }));

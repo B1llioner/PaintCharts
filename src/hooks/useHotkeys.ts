@@ -47,7 +47,11 @@ export function useHotkeys() {
         group: hotkey.group,
         startTime: Math.floor(visibleRange.from),
         endTime: Math.floor(visibleRange.to),
-        chartId: activeChart.id
+        chartId: activeChart.id,
+        interval: activeChart.interval,
+        symbol: activeChart.symbol,
+        exchange: activeChart.exchange,
+        type: activeChart.type
       };
 
       addTradingZone(zone);

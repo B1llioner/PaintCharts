@@ -23,18 +23,17 @@ export interface ChartConfig {
 export interface TradingZone {
   id: string;
   name: string;
+  interval: string;
+  symbol: string;
+  exchange: string;
+  type: 'spot' | 'futures';
+
   color: string;
   group: string;
   startTime: number;
   endTime: number;
   chartId: string;
   createdAt: string;
-  topLine?: any;
-  bottomLine?: any;
-  startLine?: any;
-  endLine?: any;
-  rectangle?: any;
-  zoneLines?: any[];
 }
 
 export interface CandleData {
