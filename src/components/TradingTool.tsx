@@ -8,7 +8,7 @@ import { StatusBar } from '@/components/StatusBar';
 import { SettingsModal } from '@/components/modals/SettingsModal';
 import { AddChartModal } from '@/components/modals/AddChartModal';
 import { useAppStore } from '@/store/useAppStore';
-import { useHotkeys } from '@/hooks/useHotkeys';
+// import { useHotkeys } from '@/hooks/useHotkeys';
 
 export function TradingTool() {
   const [showSettings, setShowSettings] = useState(false);
@@ -16,7 +16,7 @@ export function TradingTool() {
   const { charts, isLoading, error, hotkeys } = useAppStore();
   
   // Initialize hotkeys
-  useHotkeys();
+  // useHotkeys();
 
   return (
     <div className="flex h-screen bg-dark-900">
