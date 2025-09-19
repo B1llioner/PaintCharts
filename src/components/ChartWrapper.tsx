@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChartConfig, TradingZone } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
+import { useExport } from '@/hooks/useExport';
 
 type UTCTimestamp = number;
 type LwTime = UTCTimestamp | { year: number; month: number; day: number };
@@ -77,6 +78,9 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
     tradingZones,
     hotkeys,
   } = useAppStore();
+
+  // Хук для экспорта
+  const { exportChartData } = useExport();
 
   // Зоны для заголовка/слежения (рендер всё равно берёт из стора напрямую)
   const zonesForChart = useMemo(
@@ -355,6 +359,10 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
     removeChart(chart.id);
   };
 
+  const handleExport = () => {
+    exportChartData(chart);
+  };
+
   const activeHk = hotkeys.find(h => h.id === _activeHotkeyId);
 
   return (
@@ -370,6 +378,9 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
             <span>{chart.type}</span>
             <span className="mx-2">•</span>
             <span>{chart.interval}</span>
+            <span className="mx-2 text-blue-400">
+              ({zonesForChart.length} зон)
+            </span>
             {activeHk && (
               <span className="ml-3" style={{ color: activeHk.color }}>
                 Активный хоткей: {activeHk.key} — {activeHk.name}
@@ -386,6 +397,15 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
             >
               {isLoading ? '⏳' : '📊'} Загрузить
             </button>
+
+            <button
+              onClick={handleExport}
+              disabled={isLoading}
+              className="btn btn-secondary text-xs px-3 py-1 disabled:opacity-50"
+            >
+              {isLoading ? '⏳' : '📤'} Экспорт в CSV
+            </button>
+
             <button onClick={handleRemove} className="btn btn-danger text-xs px-3 py-1">
               🗑️ Удалить
             </button>

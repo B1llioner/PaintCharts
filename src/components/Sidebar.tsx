@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { ZonesList } from './ZonesList';
+import { useExport } from '@/hooks/useExport';
 
 interface SidebarProps {
   onOpenSettings: () => void;
@@ -11,97 +12,14 @@ interface SidebarProps {
 
 export function Sidebar({ onOpenSettings, onAddChart }: SidebarProps) {
   const { charts, tradingZones } = useAppStore();
+  const { exportAllChartsData, exportAllChartsSeparately } = useExport();
 
-  const handleExport = async () => {
-    try {
-      // Generate export data
-      const exportData = generateExportData();
-      
-      // Call API to generate CSV
-      const response = await fetch('/api/export/csv', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ data: exportData }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
-
-      // Download file
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `trading_zones_${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Export error:', error);
-    }
+  const handleExportAll = () => {
+    exportAllChartsData();
   };
 
-  const generateExportData = () => {
-    const exportData: any[] = [];
-    
-    charts.forEach(chart => {
-      if (!chart.series?.data()) return;
-      
-      const chartData = chart.series.data();
-      const chartZones = chart.zones || [];
-      
-      chartData.forEach((candle: { time: number; open: any; high: any; low: any; close: any; volume: any; }) => {
-        const zonesForTime = chartZones.filter(zone => 
-          candle.time >= zone.startTime && candle.time <= zone.endTime
-        );
-        
-        if (zonesForTime.length > 0) {
-          zonesForTime.forEach(zone => {
-            exportData.push({
-              timestamp: new Date(candle.time * 1000).toISOString(),
-              symbol: chart.symbol,
-              exchange: chart.exchange,
-              type: chart.type,
-              interval: chart.interval,
-              open: candle.open,
-              high: candle.high,
-              low: candle.low,
-              close: candle.close,
-              volume_usd: candle.volume || 0,
-              zone_name: zone.name,
-              zone_group: zone.group,
-              zone_color: zone.color,
-              zone_start: new Date(zone.startTime * 1000).toISOString(),
-              zone_end: new Date(zone.endTime * 1000).toISOString()
-            });
-          });
-        } else {
-          exportData.push({
-            timestamp: new Date(candle.time * 1000).toISOString(),
-            symbol: chart.symbol,
-            exchange: chart.exchange,
-            type: chart.type,
-            interval: chart.interval,
-            open: candle.open,
-            high: candle.high,
-            low: candle.low,
-            close: candle.close,
-            volume_usd: candle.volume || 0,
-            zone_name: '',
-            zone_group: '',
-            zone_color: '',
-            zone_start: '',
-            zone_end: ''
-          });
-        }
-      });
-    });
-    
-    return exportData;
+  const handleExportSeparately = () => {
+    exportAllChartsSeparately();
   };
 
   return (
@@ -127,21 +45,44 @@ export function Sidebar({ onOpenSettings, onAddChart }: SidebarProps) {
           📊 Добавить график
         </button>
         
-        <button
-          onClick={handleExport}
-          disabled={tradingZones.length === 0}
-          className="btn btn-success w-full disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          📤 Экспорт в CSV
-        </button>
+        <div className="space-y-2">
+          <button
+            onClick={handleExportAll}
+            disabled={tradingZones.length === 0}
+            className="btn btn-success w-full disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            📤 Экспорт всех графиков (1 файл)
+          </button>
+          
+          <button
+            onClick={handleExportSeparately}
+            disabled={tradingZones.length === 0}
+            className="btn btn-secondary w-full disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            📤 Экспорт всех графиков (отдельные файлы)
+          </button>
+        </div>
       </div>
 
       {/* Charts Info */}
       <div className="p-4 border-t border-dark-700">
         <h3 className="text-sm font-medium text-gray-400 mb-2">Графики</h3>
-        <div className="text-sm text-gray-300">
+        <div className="text-sm text-gray-300 mb-2">
           Активных: {charts.length}
         </div>
+        {charts.length > 0 && (
+          <div className="space-y-1 max-h-32 overflow-y-auto">
+            {charts.map((chart) => (
+              <div key={chart.id} className="text-xs text-gray-400 bg-dark-700 p-2 rounded">
+                <div className="font-medium text-white">{chart.symbol}</div>
+                <div>{chart.exchange} • {chart.type} • {chart.interval}</div>
+                <div className="text-gray-500">
+                  {tradingZones.filter(z => z.chartId === chart.id).length} зон
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Zones List */}
