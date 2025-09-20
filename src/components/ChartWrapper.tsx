@@ -434,12 +434,12 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
 
       {/* Chart area */}
       <div
-        className="relative"
-        style={{ height: '750px' }}
+        className="relative h-[clamp(300px,45vh,900px)]"
         onMouseEnter={() => setIsHover(true)}
         onMouseLeave={() => setIsHover(false)}
       >
-        <div ref={chartRef} className="w-full h-full" />
+        {/* сам канвас чарта растягиваем на весь контейнер */}
+        <div ref={chartRef} className="absolute inset-0 w-full h-full" />
         {/* Полупрозрачные зоны поверх канваса */}
         <div ref={overlayRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }} />
         {isLoading && (
