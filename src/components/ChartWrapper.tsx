@@ -183,6 +183,44 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
     return () => document.removeEventListener('keydown', onDown, { capture: true } as any);
   }, [hotkeys, isHover]);
 
+  // ==== Загрузка данных ====
+  const loadChartData = async () => {
+    if (!seriesRef.current) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        '/api/coinglass/price-history?' +
+          new URLSearchParams({
+            exchange: chart.exchange,
+            symbol: chart.symbol,
+            type: chart.type,
+            interval: chart.interval,
+            start_time: new Date(chart.startDate).getTime().toString(),
+            end_time: new Date(chart.endDate).getTime().toString(),
+            limit: '1000',
+          }),
+      );
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const result = await response.json();
+
+      if (result.success) {
+        seriesRef.current.setData(result.data);
+        chartInstanceRef.current?.timeScale().fitContent();
+        requestAnimationFrame(() => redrawOverlayRef.current());
+      } else {
+        throw new Error(result.error || 'API Error');
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Ошибка загрузки данных');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // ==== Инициализация чарта (только на монтаж/смену chart.id) ====
   useEffect(() => {
     if (!chartRef.current) return;
@@ -224,6 +262,13 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
 
         // Сохраняем ссылки для экспорта и внешних действий
         useAppStore.getState().updateChart(chart.id, { chart: inst, series });
+
+        // Автоматически загружаем данные после создания chart instance
+        setTimeout(() => {
+          if (!destroyed && series && inst) {
+            loadChartData();
+          }
+        }, 200);
 
         // Обработчик кликов для биндинга зон
         const onClick = (param: any) => {
@@ -315,43 +360,17 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
     requestAnimationFrame(() => redrawOverlayRef.current());
   }, [tradingZones, _activeHotkeyId, _pendingStart, chart.id]);
 
-  // ==== Загрузка данных ====
-  const loadChartData = async () => {
-    if (!seriesRef.current) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(
-        '/api/coinglass/price-history?' +
-          new URLSearchParams({
-            exchange: chart.exchange,
-            symbol: chart.symbol,
-            type: chart.type,
-            interval: chart.interval,
-            start_time: new Date(chart.startDate).getTime().toString(),
-            end_time: new Date(chart.endDate).getTime().toString(),
-            limit: '1000',
-          }),
-      );
-
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const result = await response.json();
-
-      if (result.success) {
-        seriesRef.current.setData(result.data);
-        chartInstanceRef.current?.timeScale().fitContent();
-        requestAnimationFrame(() => redrawOverlayRef.current());
-      } else {
-        throw new Error(result.error || 'API Error');
+  // Автоматическая загрузка данных после инициализации графика
+  useEffect(() => {
+    // Небольшая задержка для гарантии полной инициализации chart instance
+    const timer = setTimeout(() => {
+      if (seriesRef.current && chartInstanceRef.current && chart.symbol && chart.exchange) {
+        loadChartData();
       }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Ошибка загрузки данных');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [chart.id, chart.symbol, chart.exchange, chart.type, chart.interval, chart.startDate, chart.endDate]);
 
   const handleRemove = () => {
     chartInstanceRef.current?.remove();

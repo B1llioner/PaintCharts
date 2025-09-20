@@ -1,10 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 
 interface AddChartModalProps {
   onClose: () => void;
+}
+
+interface Symbol {
+  symbol: string;
+  name: string;
+  price: number;
+  change24h: number;
 }
 
 const EXCHANGES = [
@@ -32,7 +39,7 @@ const INTERVALS = [
 export function AddChartModal({ onClose }: AddChartModalProps) {
   const { addChart } = useAppStore();
   const [formData, setFormData] = useState({
-    symbol: 'BTCUSDT',
+    symbol: '',
     exchange: 'Binance',
     type: 'spot' as 'spot' | 'futures',
     interval: '1h',
@@ -40,8 +47,12 @@ export function AddChartModal({ onClose }: AddChartModalProps) {
     endDate: ''
   });
 
+  const [symbols, setSymbols] = useState<Symbol[]>([]);
+  const [loadingSymbols, setLoadingSymbols] = useState(false);
+  const [symbolsError, setSymbolsError] = useState<string | null>(null);
+
   // Set default dates
-  useState(() => {
+  useEffect(() => {
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     
@@ -50,7 +61,53 @@ export function AddChartModal({ onClose }: AddChartModalProps) {
       startDate: weekAgo.toISOString().slice(0, 16),
       endDate: now.toISOString().slice(0, 16)
     }));
-  });
+  }, []);
+
+  // Загружаем символы при изменении биржи или типа
+  useEffect(() => {
+    if (formData.exchange && formData.type) {
+      loadSymbols();
+    } else {
+      setSymbols([]);
+      setFormData(prev => ({ ...prev, symbol: '' }));
+    }
+  }, [formData.exchange, formData.type]);
+
+  const loadSymbols = async () => {
+    setLoadingSymbols(true);
+    setSymbolsError(null);
+    
+    try {
+      // Используем бирже-специфичный API endpoint
+      const exchangeApiUrl = `/api/${formData.exchange.toLowerCase()}/symbols`;
+      const response = await fetch(
+        `${exchangeApiUrl}?${new URLSearchParams({
+          type: formData.type
+        })}`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setSymbols(result.data);
+        // Автоматически выбираем первый символ, если список не пустой
+        if (result.data.length > 0) {
+          setFormData(prev => ({ ...prev, symbol: result.data[0].symbol }));
+        }
+      } else {
+        throw new Error(result.error || 'Ошибка загрузки символов');
+      }
+    } catch (error) {
+      setSymbolsError(error instanceof Error ? error.message : 'Неизвестная ошибка');
+      setSymbols([]);
+    } finally {
+      setLoadingSymbols(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +132,8 @@ export function AddChartModal({ onClose }: AddChartModalProps) {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const isSymbolFieldDisabled = !formData.exchange || !formData.type || loadingSymbols;
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -89,22 +148,8 @@ export function AddChartModal({ onClose }: AddChartModalProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Symbol and Exchange */}
+          {/* Exchange and Type */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Пара
-              </label>
-              <input
-                type="text"
-                value={formData.symbol}
-                onChange={(e) => handleChange('symbol', e.target.value)}
-                className="input w-full"
-                placeholder="BTCUSDT"
-                required
-              />
-            </div>
-            
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Биржа
@@ -121,10 +166,7 @@ export function AddChartModal({ onClose }: AddChartModalProps) {
                 ))}
               </select>
             </div>
-          </div>
-
-          {/* Type and Interval */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Тип
@@ -138,23 +180,61 @@ export function AddChartModal({ onClose }: AddChartModalProps) {
                 <option value="futures">Фьючерсная пара</option>
               </select>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Интервал
-              </label>
+          </div>
+
+          {/* Symbol Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Торговая пара
+            </label>
+            {loadingSymbols ? (
+              <div className="input w-full flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                <span className="text-gray-400">Загрузка пар...</span>
+              </div>
+            ) : symbolsError ? (
+              <div className="input w-full text-red-400 bg-red-900/20 border-red-500">
+                Ошибка: {symbolsError}
+              </div>
+            ) : (
               <select
-                value={formData.interval}
-                onChange={(e) => handleChange('interval', e.target.value)}
+                value={formData.symbol}
+                onChange={(e) => handleChange('symbol', e.target.value)}
                 className="input w-full"
+                disabled={isSymbolFieldDisabled}
+                required
               >
-                {INTERVALS.map(interval => (
-                  <option key={interval.value} value={interval.value}>
-                    {interval.label}
+                <option value="">
+                  {isSymbolFieldDisabled 
+                    ? 'Сначала выберите биржу и тип' 
+                    : 'Выберите торговую пару'
+                  }
+                </option>
+                {symbols.map(symbol => (
+                  <option key={symbol.symbol} value={symbol.symbol}>
+                    {symbol.symbol} {symbol.price > 0 ? `($${symbol.price.toFixed(4)})` : ''}
                   </option>
                 ))}
               </select>
-            </div>
+            )}
+          </div>
+
+          {/* Interval */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Интервал
+            </label>
+            <select
+              value={formData.interval}
+              onChange={(e) => handleChange('interval', e.target.value)}
+              className="input w-full"
+            >
+              {INTERVALS.map(interval => (
+                <option key={interval.value} value={interval.value}>
+                  {interval.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Date Range */}
@@ -198,8 +278,9 @@ export function AddChartModal({ onClose }: AddChartModalProps) {
             <button
               type="submit"
               className="btn btn-primary"
+              disabled={!formData.symbol || !formData.startDate || !formData.endDate || loadingSymbols}
             >
-              Создать график
+              {loadingSymbols ? 'Загрузка...' : 'Создать график'}
             </button>
           </div>
         </form>
