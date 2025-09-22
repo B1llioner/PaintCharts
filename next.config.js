@@ -2,9 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  experimental: {
-    appDir: true,
-  },
+  output: 'standalone',
   env: {
     COINGLASS_API_KEY: process.env.COINGLASS_API_KEY || '57e6078b48cf4f2bb9a308fabde7a594',
     COINGLASS_API_BASE: 'https://open-api-v4.coinglass.com/api',

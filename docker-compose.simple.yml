@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  paintcharts:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: paintcharts:latest
+    container_name: paintcharts-app
+    ports:
+      - "80:3000"  # Маппим порт 3000 контейнера на порт 80 хоста
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - NEXT_TELEMETRY_DISABLED=1
+      - COINGLASS_API_KEY=${COINGLASS_API_KEY:-57e6078b48cf4f2bb9a308fabde7a594}
+      - COINGLASS_API_BASE=https://open-api-v4.coinglass.com/api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

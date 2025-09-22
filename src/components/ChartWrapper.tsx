@@ -232,10 +232,10 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
 
     (async () => {
       try {
-        const { createChart } = await import('lightweight-charts');
+        const LightweightCharts = await import('lightweight-charts');
         if (!chartRef.current || destroyed) return;
 
-        const inst = createChart(chartRef.current, {
+        const inst = LightweightCharts.createChart(chartRef.current, {
           layout: { background: { color: '#1a1a1a' }, textColor: '#e0e0e0' },
           rightPriceScale: { visible: true, borderVisible: false, scaleMargins: { top: 0.08, bottom: 0.08 } },
           grid: {
@@ -243,12 +243,12 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
             horzLines: { color: 'rgba(197,203,206,0.1)' },
           },
           timeScale: { timeVisible: true, secondsVisible: true, borderVisible: true },
-          crosshair: { mode: 1 },
+          crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
           width: chartRef.current.clientWidth,
           height: chartRef.current.clientHeight,
         });
 
-        const series = inst.addCandlestickSeries({
+        const series = inst.addSeries(LightweightCharts.CandlestickSeries, {
           upColor: '#26a69a',
           downColor: '#ef5350',
           borderVisible: false,
