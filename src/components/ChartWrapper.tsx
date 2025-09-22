@@ -232,7 +232,7 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
 
     (async () => {
       try {
-        const { createChart, CandlestickSeries } = await import('lightweight-charts');
+        const { createChart } = await import('lightweight-charts');
         if (!chartRef.current || destroyed) return;
 
         const inst = createChart(chartRef.current, {
@@ -248,7 +248,7 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
           height: chartRef.current.clientHeight,
         });
 
-        const series = inst.addSeries(CandlestickSeries, {
+        const series = inst.addCandlestickSeries({
           upColor: '#26a69a',
           downColor: '#ef5350',
           borderVisible: false,
