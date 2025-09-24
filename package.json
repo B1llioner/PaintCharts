@@ -13,7 +13,7 @@
   "dependencies": {
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
-    "lightweight-charts": "^5.0.0",
+    "klinecharts": "^10.0.0-alpha5",
     "next": "^14.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -39,7 +39,6 @@
     "cryptocurrency",
     "forex",
     "coinglass",
-    "lightweight-charts",
     "nextjs",
     "react"
   ],
