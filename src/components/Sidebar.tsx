@@ -12,14 +12,17 @@ interface SidebarProps {
 
 export function Sidebar({ onOpenSettings, onAddChart }: SidebarProps) {
   const { charts, tradingZones } = useAppStore();
-  const { exportAllChartsData, exportAllChartsSeparately } = useExport();
+  const { exportAllChartsToSingleFile, exportChartData } = useExport();
 
   const handleExportAll = () => {
-    exportAllChartsData();
+    exportAllChartsToSingleFile();
   };
 
   const handleExportSeparately = () => {
-    exportAllChartsSeparately();
+
+    charts.forEach(chart => {
+      exportChartData(chart);
+    });
   };
 
   return (
@@ -37,14 +40,14 @@ export function Sidebar({ onOpenSettings, onAddChart }: SidebarProps) {
         >
           ⚙️ Настройки хоткеев
         </button>
-        
+
         <button
           onClick={onAddChart}
           className="btn btn-secondary w-full"
         >
           📊 Добавить график
         </button>
-        
+
         <div className="space-y-2">
           <button
             onClick={handleExportAll}
@@ -53,7 +56,7 @@ export function Sidebar({ onOpenSettings, onAddChart }: SidebarProps) {
           >
             📤 Экспорт всех графиков (1 файл)
           </button>
-          
+
           <button
             onClick={handleExportSeparately}
             disabled={tradingZones.length === 0}
