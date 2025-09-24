@@ -12,14 +12,17 @@ interface SidebarProps {
 
 export function Sidebar({ onOpenSettings, onAddChart }: SidebarProps) {
   const { charts, tradingZones } = useAppStore();
-  const { exportAllChartsData, exportAllChartsSeparately } = useExport();
+  // exportChartData, exportAllChartsToSingleFile
+  const { exportAllChartsToSingleFile, exportChartData } = useExport();
 
   const handleExportAll = () => {
-    exportAllChartsData();
+    exportAllChartsToSingleFile();
   };
 
   const handleExportSeparately = () => {
-    exportAllChartsSeparately();
+    charts.forEach(chart => {
+      exportChartData(chart);
+    });
   };
 
   return (
