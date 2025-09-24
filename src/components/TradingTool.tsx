@@ -73,28 +73,38 @@ export function TradingTool() {
       {/* Hotkeys Info */}
       {hotkeys.length > 0 && (
       <div
+        aria-hidden
         className="
-          fixed right-4 top-2
-          bg-dark-800/95 backdrop-blur
-          border border-dark-700 rounded-lg
-          p-3 shadow-lg z-40
-          max-w-[520px]
+          pointer-events-none fixed top-2 right-3 z-[40]
+          max-w-[70vw]
         "
       >
-        <div className="text-xs text-gray-400 mb-2">
-          Горячие клавиши
-        </div>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-          {hotkeys.map((hotkey) => (
-            <div key={hotkey.id} className="flex items-center text-xs min-w-0">
-              <span
-                className="w-3 h-3 rounded-sm mr-1 shrink-0"
-                style={{ backgroundColor: hotkey.color }}
-              />
-              <span className="text-white mr-1 shrink-0">{hotkey.key}</span>
-              <span className="text-gray-400 truncate">{hotkey.name}</span>
-            </div>
-          ))}
+        <div
+          className="
+            flex items-center gap-3
+            rounded-lg border border-white/10
+            bg-dark-800/55 backdrop-blur-sm
+            px-3 py-1.5 text-xs leading-none
+            shadow-sm
+          "
+        >
+          <span className="text-gray-400">Горячие клавиши:</span>
+
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {hotkeys.map(h => (
+              <div
+                key={h.id}
+                className="flex items-center gap-1 text-[11px] text-gray-300 pointer-events-none"
+              >
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-sm"
+                  style={{ backgroundColor: h.color, opacity: 0.9 }}
+                />
+                <span className="text-white/90">{h.key}</span>
+                <span className="text-gray-400">{h.name}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     )}
