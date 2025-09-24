@@ -19,20 +19,28 @@ export function ChartsContainer() {
     );
   }
 
-  // Determine grid layout based on number of charts
-  const getGridClass = (count: number) => {
-    if (count <= 1) return 'grid-cols-1';
-    if (count <= 2) return 'grid-cols-1 md:grid-cols-2';
-    if (count <= 4) return 'grid-cols-1 md:grid-cols-2';
-    if (count <= 6) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
-    return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
-  };
+  // кол-во колонок по количеству графиков
+  const gridCols =
+    charts.length <= 1 ? 'grid-cols-1'
+    : charts.length <= 2 ? 'grid-cols-1 md:grid-cols-2'
+    : charts.length <= 4 ? 'grid-cols-1 md:grid-cols-2'
+    : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
 
-  return (
-    <div className={`grid ${getGridClass(charts.length)} gap-4 p-4 h-full`}>
-      {charts.map((chart: any) => (
-        <ChartWrapper key={chart.id} chart={chart} />
-      ))}
-    </div>
-  );
+    return (
+      // здесь задаём желаемую высоту карточки
+      // можешь сразу поставить 60vh/65vh, или фикс пикселей
+      <div className="h-full min-h-0 overflow-auto
+                      [--chart-min-h:600px] md:[--chart-min-h:640px] lg:[--chart-min-h:700px]">
+        <div
+          className={`grid ${gridCols} gap-4 p-4
+                      auto-rows-[minmax(var(--chart-min-h),auto)]`}
+        >
+          {charts.map((chart: any) => (
+            <div key={chart.id} className="min-h-0">
+              <ChartWrapper chart={chart} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
 }

@@ -72,22 +72,32 @@ export function TradingTool() {
 
       {/* Hotkeys Info */}
       {hotkeys.length > 0 && (
-        <div className="fixed bottom-20 left-4 bg-dark-800 border border-dark-700 rounded-lg p-3 shadow-lg z-40">
-          <div className="text-xs text-gray-400 mb-2">Горячие клавиши:</div>
-          <div className="flex flex-wrap gap-2">
-            {hotkeys.map((hotkey) => (
-              <div key={hotkey.id} className="flex items-center space-x-1 text-xs">
-                <div 
-                  className="w-3 h-3 rounded-sm"
-                  style={{ backgroundColor: hotkey.color }}
-                />
-                <span className="text-white">{hotkey.key}</span>
-                <span className="text-gray-400">{hotkey.name}</span>
-              </div>
-            ))}
-          </div>
+      <div
+        className="
+          fixed right-4 top-2
+          bg-dark-800/95 backdrop-blur
+          border border-dark-700 rounded-lg
+          p-3 shadow-lg z-40
+          max-w-[520px]
+        "
+      >
+        <div className="text-xs text-gray-400 mb-2">
+          Горячие клавиши
         </div>
-      )}
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+          {hotkeys.map((hotkey) => (
+            <div key={hotkey.id} className="flex items-center text-xs min-w-0">
+              <span
+                className="w-3 h-3 rounded-sm mr-1 shrink-0"
+                style={{ backgroundColor: hotkey.color }}
+              />
+              <span className="text-white mr-1 shrink-0">{hotkey.key}</span>
+              <span className="text-gray-400 truncate">{hotkey.name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
     </div>
   );
 }

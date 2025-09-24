@@ -370,23 +370,25 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
   const activeHk = hotkeys.find(h => h.id === _activeHotkeyId);
 
   return (
-    <div className="bg-dark-800 border border-dark-700 rounded-lg overflow-hidden">
-      <div className="bg-dark-700 px-4 py-3 border-b border-dark-600">
+    <div className="bg-dark-800 border border-dark-700 rounded-lg overflow-hidden flex flex-col">
+      {/* Header */}
+      <div className="bg-dark-700 px-4 py-3 border-b border-dark-600 shrink-0">
         <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-300">
+          <div className="text-sm text-gray-300 truncate">
             <span className="font-medium">{chart.symbol}</span>
             <span className="mx-2">•</span><span>{chart.exchange}</span>
             <span className="mx-2">•</span><span>{chart.type}</span>
             <span className="mx-2">•</span><span>{chart.interval}</span>
             <span className="mx-2 text-blue-400">({zonesForChart.length} зон)</span>
             {activeHk && (
-              <span className="ml-3" style={{ color: activeHk.color }}>
+              <span className="ml-3 truncate" style={{ color: activeHk.color }}>
                 Активный хоткей: {activeHk.key} — {activeHk.name}
                 {pendingStartRef.current ? ' (выберите конец зоны)' : ' (кликните для старта зоны)'}
               </span>
             )}
           </div>
-          <div className="flex items-center space-x-2">
+  
+          <div className="flex items-center gap-2 shrink-0">
             <button onClick={loadChartData} disabled={isLoading} className="btn btn-secondary text-xs px-3 py-1 disabled:opacity-50">
               {isLoading ? '⏳' : '📊'} Загрузить
             </button>
@@ -397,13 +399,14 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
           </div>
         </div>
       </div>
-
+  
+      {/* Chart area */}
       <div
-        className="relative h-[clamp(300px,45vh,900px)]"
+        className="relative min-h-[var(--chart-min-h)]"
         onMouseEnter={() => setIsHover(true)}
         onMouseLeave={() => setIsHover(false)}
       >
-        <div ref={containerRef} className="absolute inset-0 w-full h-full" />
+        <div ref={containerRef} className="absolute inset-0" />
         {isLoading && (
           <div className="absolute inset-0 bg-dark-800/75 flex items-center justify-center">
             <div className="flex items-center space-x-2 text-white">
@@ -413,6 +416,9 @@ export function ChartWrapper({ chart }: ChartWrapperProps) {
           </div>
         )}
       </div>
+
     </div>
   );
+  
+  
 }
